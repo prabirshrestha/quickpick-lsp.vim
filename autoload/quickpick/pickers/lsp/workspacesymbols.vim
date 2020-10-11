@@ -1,70 +1,71 @@
-let s:req_id = 0
-
-function! quickpick#pickers#lsp#workspacesymbols#show() abort
-	let l:servers = filter(lsp#get_whitelisted_servers(), 'lsp#capabilities#has_workspace_symbol_provider(v:val)')
-    let l:id = quickpick#create({
-        \   'on_change': function('s:on_change', [l:servers]),
-        \   'on_accept': function('s:on_accept'),
-        \   'on_close': function('s:on_close'),
-        \ })
-    call quickpick#show(l:id)
-	call s:on_change(l:servers, l:id, 'change', '')
-    return l:id
+function! quickpick#pickers#lsp#workspacesymbols#open() abort
+  let s:servers = filter(lsp#get_allowed_servers(), 'lsp#capabilities#has_workspace_symbol_provider(v:val)')
+  if len(s:servers) == 0
+    echohl ErrorMsg
+    echomsg 'No LSP servers with workspace symbol support found'
+    echohl NONE
+	return
+  endif
+  call quickpick#open({
+    \ 'key': 'text',
+    \ 'on_open': function('s:on_open'),
+    \ 'on_change': function('s:on_change'),
+    \ 'on_accept': function('s:on_accept'),
+    \ 'on_close': function('s:on_close'),
+    \ })
 endfunction
 
-function! s:on_change(servers, id, action, searchterm) abort
-	if len(a:servers) == 0
-		return
-	endif
-	
-    call quickpick#set_busy(a:id, 1)
-    if exists('s:search_timer')
-        call timer_stop(s:search_timer)
-        unlet s:search_timer
-    endif
-    let s:search_timer = timer_start(100, function('s:on_search', [a:servers, a:id, a:action, a:searchterm]))
+function! s:on_open(data, ...) abort
+  let s:Input = lsp#callbag#makeSubject()
+  let s:Dispose = lsp#callbag#pipe(
+	\ s:Input,
+	\ lsp#callbag#distinctUntilChanged(),
+	\ lsp#callbag#tap({_->quickpick#busy(1)}),
+	\ lsp#callbag#switchMap({query->
+	\   lsp#request(s:servers[0], {
+	\     'method': 'workspace/symbol',
+	\     'params': {
+	\       'query': query,
+	\     },
+	\   })
+	\ }),
+	\ lsp#callbag#tap({data->s:set_items(data)}),
+	\ lsp#callbag#tap({_->quickpick#busy(0)}),
+	\ lsp#callbag#subscribe(),
+	\ )
+  " send empty string as query to trigger first result
+  " most language servers usually returns empty result if query is empty
+  call s:Input(1, '')
 endfunction
 
-function! s:on_accept(id, action, data) abort
-    call quickpick#close(a:id)
-	" TODO: do not use internal apis
-	call lsp#utils#location#_open_vim_list_item(a:data['items'][0], '')
+function! s:set_items(data) abort
+  if lsp#client#is_error(a:data['response'])
+    echohl ErrorMsg
+    echomsg 'Error occured retrieving LSP workspace symbols'
+    echohl NONE
+    return
+  endif
+
+  let l:list = lsp#ui#vim#utils#symbols_to_loc_list(s:servers[0], a:data)
+  call quickpick#items(l:list)
 endfunction
 
-function! s:on_close(id, ...) abort
-    if exists('s:search_timer')
-        call timer_stop(s:search_timer)
-        unlet s:search_timer
-    endif
+function! s:on_change(data, ...) abort
+  call s:Input(1, a:data['input'])
 endfunction
 
-function! s:on_search(servers, id, action, searchterm, ...) abort
-	let s:req_id += 1
-	let l:ctx = { 'results': [], 'total': len(a:servers), 'counter': 0, 'req_id': s:req_id }
-	for l:server in a:servers
-        call lsp#send_request(l:server, {
-            \ 'method': 'workspace/symbol',
-            \ 'params': {
-            \   'query': a:searchterm,
-            \ },
-            \ 'on_notification': function('s:on_lsp_notification', [ctx, l:server, a:id]),
-            \ })
-	endfor
+function! s:on_accept(data, ...) abort
+  call quickpick#close()
+  call lsp#utils#tagstack#_update()
+  call lsp#utils#location#_open_vim_list_item(a:data['items'][0], '')
 endfunction
 
-function! s:on_lsp_notification(ctx, server, id, data) abort
-	let a:ctx['counter'] += 1
-	if s:req_id != a:ctx['req_id']
-		return
-	endif
-	if lsp#client#is_error(a:data['response']) 
-		call quickpick#set_busy(a:id, a:ctx['total'] != a:ctx['counter'])
-        return 
-	endif
-	for l:item in lsp#ui#vim#utils#symbols_to_loc_list(a:server, a:data)
-		let l:item['label'] = l:item['text']
-		call add(a:ctx['results'], l:item)
-	endfor
-	call quickpick#set_busy(a:id, a:ctx['total'] != a:ctx['counter'])
-	call quickpick#set_items(a:id, a:ctx['results'])
+function! s:on_close(...) abort
+  if exists('s:Dispose')
+    call s:Dispose()
+    unlet s:Dispose
+  endif
+  unlet s:Input
 endfunction
+
+" vim: set sw=2 ts=2 sts=2 et tw=78 foldmarker={{{,}}} foldmethod=marker spell:
