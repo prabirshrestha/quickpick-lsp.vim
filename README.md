@@ -11,5 +11,6 @@ Plug 'prabirshrestha/quickpick-lsp.vim'
 # Usage
 
 ```vim
+:PLspDocumentSymbol
 :PLspWorkspaceSymbol
 ```
