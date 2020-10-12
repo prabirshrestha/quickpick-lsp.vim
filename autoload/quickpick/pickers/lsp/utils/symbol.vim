@@ -22,7 +22,7 @@ function! s:on_open(servers, typ, requestcb, data, ...) abort
   let s:Dispose = lsp#callbag#pipe(
 	\ s:Input,
 	\ lsp#callbag#distinctUntilChanged(),
-	\ lsp#callbag#tap({_->quickpick#busy(0)}),
+	\ lsp#callbag#tap({_->quickpick#busy(1)}),
 	\ lsp#callbag#switchMap({query->lsp#request(a:servers[0], a:requestcb(query))}),
 	\ lsp#callbag#tap({data->s:set_items(a:servers, a:typ, data)}),
 	\ lsp#callbag#tap({_->quickpick#busy(0)}),
