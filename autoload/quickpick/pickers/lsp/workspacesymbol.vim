@@ -1,4 +1,4 @@
-function! quickpick#pickers#lsp#workspacesymbols#open() abort
+function! quickpick#pickers#lsp#workspacesymbol#open() abort
   let s:servers = filter(lsp#get_allowed_servers(), 'lsp#capabilities#has_workspace_symbol_provider(v:val)')
   if len(s:servers) == 0
     echohl ErrorMsg

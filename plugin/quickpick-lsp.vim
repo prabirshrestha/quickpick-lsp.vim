@@ -3,4 +3,4 @@ if exists('g:quickpick_lsp_loaded')
 endif
 let g:quickpick_lsp_loaded = 1
 
-command! PLspWorkspaceSymbols call quickpick#pickers#lsp#workspacesymbols#open()
+command! PLspWorkspaceSymbol call quickpick#pickers#lsp#workspacesymbol#open()
