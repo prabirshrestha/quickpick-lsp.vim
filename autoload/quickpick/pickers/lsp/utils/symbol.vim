@@ -1,4 +1,7 @@
-function! quickpick#pickers#lsp#utils#symbol#open(servers, typ, requestcb) abort
+function! s:noop(...) abort
+endfunction
+
+function! quickpick#pickers#lsp#utils#symbol#open(servers, typ, requestcb, onchange) abort
   if len(a:servers) == 0
     echohl ErrorMsg
     echomsg 'No LSP servers with ' . a:typ . ' support found'
@@ -8,7 +11,7 @@ function! quickpick#pickers#lsp#utils#symbol#open(servers, typ, requestcb) abort
   call quickpick#open({
     \ 'key': 'text',
     \ 'on_open': function('s:on_open', [a:servers, a:typ, a:requestcb]),
-    \ 'on_change': function('s:on_change'),
+    \ 'on_change': a:onchange ? function('s:on_change') : function('s:noop'),
     \ 'on_accept': function('s:on_accept'),
     \ 'on_close': function('s:on_close'),
     \ })
