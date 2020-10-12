@@ -14,3 +14,11 @@ Plug 'prabirshrestha/quickpick-lsp.vim'
 :PLspDocumentSymbol
 :PLspWorkspaceSymbol
 ```
+
+# Demos
+
+# :PLspDocumentSymbol
+[![asciicast](https://asciinema.org/a/364805.svg)](https://asciinema.org/a/364805)
+
+# :PLspWorkspaceSymbol
+[![asciicast](https://asciinema.org/a/364749.svg)](https://asciinema.org/a/364749)
